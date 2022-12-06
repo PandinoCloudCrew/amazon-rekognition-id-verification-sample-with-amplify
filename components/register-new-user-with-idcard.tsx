@@ -389,6 +389,7 @@ export const RegisterNewUserWithIdCard = (props: DashboardProps) => {
     const [state, dispatch] = useReducer(reducer, initialProps);
 
     const webcamRef = useRef(null) as any;
+    const webcamRefIdCard = useRef(null) as any;
 
     const capture = useCallback(
         () => {
@@ -399,11 +400,13 @@ export const RegisterNewUserWithIdCard = (props: DashboardProps) => {
     );
 
     const captureIdCard = useCallback(
-        () => {
-            const imageSrc = webcamRef?.current?.getScreenshot();
+        async () => {
+            const imageSrc = webcamRefIdCard?.current?.getScreenshot();
+            let idImageDataBase64 = getImageFromUploadComponent(imageSrc)
+            await fetchTextInCard(idImageDataBase64, state, dispatch);
             dispatch({ type: 'screenshotIdCard', payload: imageSrc });
         },
-        [webcamRef]
+        [webcamRefIdCard]
     );
 
     const regFieldsArg = {
@@ -415,7 +418,7 @@ export const RegisterNewUserWithIdCard = (props: DashboardProps) => {
         dispatch({ type: 'idCard', payload: imageList });
 
         const idImageDataBase64 = getImageFromUploadComponent(imageList[0]["data_url"]);
-        await fetchTextInCard(idImageDataBase64, state, dispatch);
+        await fetchTextInCard(idImageDataBase64, state, dispatch); //TODO complete OCR Here
     }
 
     const submissionSummaryProps = {
@@ -453,12 +456,12 @@ export const RegisterNewUserWithIdCard = (props: DashboardProps) => {
                         </div>
                     </div>
                     <div className="col-md-6" style={{ border: "1px solid #eeeeee" }}>
-                        <h3>Selfie</h3>
+                        <h3>ID Card capture</h3>
                         <Webcam
                             audio={false}
                             className={`${state.screenshotIdCard ? "d-none" : "d-block"}`}
                             height={videoConstraints.height}
-                            ref={webcamRef}
+                            ref={webcamRefIdCard}
                             screenshotFormat="image/jpeg"
                             width={videoConstraints.width}
                             videoConstraints={videoConstraints}
