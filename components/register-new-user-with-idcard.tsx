@@ -18,6 +18,7 @@ import { CardText } from 'react-bootstrap-icons';
 
 interface RegNewUserWithIdCardProps {
     screenshot: string,
+    screenshotIdCard: string,
     userid: string,
     firstname: string,
     lastname: string,
@@ -56,7 +57,8 @@ interface RegFieldsProps {
     dispatch: Dispatch<RegUserAction>
 }
 
-const initialProps = { screenshot: '', 
+const initialProps = { screenshot: '',
+                       screenshotIdCard: '',
                        userid: '',
                        firstname: '',
                        lastname: '',
@@ -97,6 +99,11 @@ function reducer(state: RegNewUserWithIdCardProps, action: RegUserAction) {
             return {
                 ...state,
                 screenshot: action.payload,
+            };
+        case 'screenshotIdCard':
+            return {
+                ...state,
+                screenshotIdCard: action.payload,
             };
         case 'busy':
             return {
@@ -151,6 +158,7 @@ function validateFields(props: RegNewUserWithIdCardProps) {
         !props.lastname ||
         !props.dob ||
         !props.screenshot ||
+        !props.screenshotIdCard ||
         !props.idCard ||
         !props.userid) {
         return false;
@@ -204,8 +212,8 @@ async function submitUser(props: RegNewUserWithIdCardProps, dispatch: Dispatch<R
         dispatch({ type: 'busy', payload: 'true' });
 
         // create ddb entry first
-        var filename = "regimages/" + props.userid + ".jpg";
-        var userInfo = {
+        let filename = "regimages/" + props.userid + ".jpg";
+        let userInfo = {
             companyid: 'Amazon',
             userid: props.userid,
             firstname: props.firstname,
@@ -225,20 +233,20 @@ async function submitUser(props: RegNewUserWithIdCardProps, dispatch: Dispatch<R
             }
         );
 
-        // then store image in s3 bucket
+        // then store face in s3 bucket
         let imageData = await fetch(props.screenshot);
         let blob = await imageData.blob();
         const storageResponse = await Storage.put(filename,
             blob, {
-            contentType: 'image/jpeg',
-            progressCallback(progress: any) {
-                console.log(`Uploaded: ${progress.loaded}/${progress.total}`);
-            }
-        }) as StoragePutResponse;
+                contentType: 'image/jpeg',
+                progressCallback(progress: any) {
+                    console.log(`Uploaded: ${progress.loaded}/${progress.total}`);
+                }
+            }) as StoragePutResponse;
 
         if (!storageResponse || !storageResponse.key) {
             console.log("Unable to upload image");
-            dispatch({ type: 'busy', payload: 'false' });
+            dispatch({type: 'busy', payload: 'false'});
             return;
         }
 
@@ -247,7 +255,7 @@ async function submitUser(props: RegNewUserWithIdCardProps, dispatch: Dispatch<R
         const variables = {
             userInfoAsJson: JSON.stringify(userInfo),
             faceImageDataBase64: getImageFromUploadComponent(props.screenshot),
-            idImageDataBase64: getImageFromUploadComponent(props.idCard[0]["data_url"])
+            idImageDataBase64: getImageFromUploadComponent(props.screenshotIdCard)
         };
 
         const registerUserResponse = await callGraphQLSimpleQuery<RegisternewuserwithidcardMutation>(
@@ -390,6 +398,14 @@ export const RegisterNewUserWithIdCard = (props: DashboardProps) => {
         [webcamRef]
     );
 
+    const captureIdCard = useCallback(
+        () => {
+            const imageSrc = webcamRef?.current?.getScreenshot();
+            dispatch({ type: 'screenshotIdCard', payload: imageSrc });
+        },
+        [webcamRef]
+    );
+
     const regFieldsArg = {
         innerProps: state as RegNewUserWithIdCardProps,
         dispatch: dispatch as Dispatch<RegUserAction>
@@ -437,44 +453,21 @@ export const RegisterNewUserWithIdCard = (props: DashboardProps) => {
                         </div>
                     </div>
                     <div className="col-md-6" style={{ border: "1px solid #eeeeee" }}>
-                        <ImageUploading
-                            multiple={false}
-                            value={state.idCard}
-                            onChange={onChange}
-                            maxNumber={maxNumber}
-                            dataURLKey="data_url"
-                        >
-                            {({
-                                imageList,
-                                onImageUpload,
-                                onImageRemoveAll,
-                                onImageUpdate,
-                                onImageRemove,
-                                isDragging,
-                                dragProps,
-                            }) => (
-                                <div className="upload__image-wrapper">
-                                    <h3>Id card</h3>
-                                    {!imageList || imageList.length <= 0 && <button
-                                        style={isDragging ? { color: 'red' } : undefined}
-                                        onClick={onImageUpload}
-                                        className="btn btn-primary"
-                                        {...dragProps}
-                                    >
-                                        Click or Drop here
-                                    </button>}
-                                    {imageList.map((image, index) => (
-                                        <div key={index} className="image-item border border-info m-2 p-2">
-                                            <Image src={image['data_url']} alt="" width="300" height="200" />
-                                            <div className="image-item__btn-wrapper">
-                                                <button className="btn btn-primary" style={{ marginRight: "5px" }} onClick={() => onImageUpdate(index)}>Update</button>
-                                                <button className="btn btn-danger" style={{ marginRight: "5px" }} onClick={() => onImageRemove(index)}>Remove</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </ImageUploading>
+                        <h3>Selfie</h3>
+                        <Webcam
+                            audio={false}
+                            className={`${state.screenshotIdCard ? "d-none" : "d-block"}`}
+                            height={videoConstraints.height}
+                            ref={webcamRef}
+                            screenshotFormat="image/jpeg"
+                            width={videoConstraints.width}
+                            videoConstraints={videoConstraints}
+                        />
+                        <div
+                            className={`${state.screenshotIdCard ? "d-block" : "d-none"}`}
+                            style={{ marginTop: 10 }}>
+                            <img src={state.screenshotIdCard} alt="face" height={videoConstraints.height} />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -487,6 +480,18 @@ export const RegisterNewUserWithIdCard = (props: DashboardProps) => {
                 <button
                     className={`btn btn-info ${state.screenshot ? "d-inline" : "d-none"}`}
                     onClick={() => dispatch({ type: 'screenshot', payload: '' })}>
+                    Retake pic
+                </button>
+            </div>
+            <div className={`container ${state.status != 'success' ? 'd-block' : 'd-none'}`} style={{ marginTop: 10 }}>
+                <button
+                    className={`btn btn-outline-primary ${state.screenshotIdCard ? "d-none" : "d-inline"}`}
+                    onClick={captureIdCard}>
+                    Capture ID Card
+                </button>
+                <button
+                    className={`btn btn-info ${state.screenshotIdCard ? "d-inline" : "d-none"}`}
+                    onClick={() => dispatch({ type: 'screenshotIdCard', payload: '' })}>
                     Retake pic
                 </button>
             </div>
