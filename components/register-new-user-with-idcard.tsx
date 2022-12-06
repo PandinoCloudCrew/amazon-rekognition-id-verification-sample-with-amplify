@@ -159,7 +159,6 @@ function validateFields(props: RegNewUserWithIdCardProps) {
         !props.dob ||
         !props.screenshot ||
         !props.screenshotIdCard ||
-        !props.idCard ||
         !props.userid) {
         return false;
     }
