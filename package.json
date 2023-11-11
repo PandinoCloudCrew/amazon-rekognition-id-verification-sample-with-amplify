@@ -11,7 +11,7 @@
   "dependencies": {
     "@aws-amplify/ui-react": "^1.2.11",
     "aws-amplify": "^4.3.32",
-    "axios": "^0.27.2",
+    "axios": "^1.6.0",
     "bootstrap": "^5.2.0",
     "chart.js": "^3.9.1",
     "next": "^12.2.5",
